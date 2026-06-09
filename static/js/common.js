@@ -56,3 +56,4 @@ async function api(url, opts = {}){
 function uiAlert(message,title='Notice',icon='⚡'){
   alert(`${title}: ${message}`);
 }
+ 
