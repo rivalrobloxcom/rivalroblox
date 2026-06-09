@@ -1,144 +1,105 @@
-const POST_ID = new URLSearchParams(location.search).get('id') || window.POST_ID;
+const POST_ID = new URLSearchParams(location.search).get('id');
 
 if(!POST_ID){
-document.addEventListener('DOMContentLoaded',()=>{
-uiAlert('No party selected.','Missing party','⚠️')
-.then(()=>location.href='find-players.html');
-});
+  uiAlert('Missing party','Error','⚠️')
+  .then(()=>location.href='find-players.html');
 }
 
-let lastCount = 0;
+let last = 0;
 
 async function loadParty(){
-let d = await api('/api/party/' + POST_ID);
-let p = d.post;
-let me = d.me;
+  try{
+    const d = await api('/api/party/'+POST_ID);
+    const p = d.post;
+    const me = d.me;
 
-let isMember = d.members.some(m => m.id === me.id);
-let isOwner = d.members.some(m => m.id === me.id && m.role === 'owner');
+    const member = d.members.find(m=>m.id===me.id);
+    const isOwner = member && member.role==='owner';
+    const isMember = !!member;
 
-$('#partyTitle').textContent = p.title;
-$('#partyDesc').textContent = p.description || '';
-$('#partyMode').textContent = p.game_mode || '';
-$('#partyRank').textContent = p.rank_requirement || '';
-$('#partyRegion').textContent = p.region || '';
-$('#partyCount').textContent = p.current_players + '/' + p.max_players;
+    $('#partyTitle').textContent = p.title;
+    $('#partyDesc').textContent = p.description || '';
+    $('#partyMode').textContent = p.game_mode || '';
+    $('#partyRank').textContent = p.rank_requirement || '';
+    $('#partyRegion').textContent = p.region || '';
+    $('#partyCount').textContent = `${p.current_players}/${p.max_players}`;
 
-$('#members').innerHTML = d.members.map(m => `
-<div class="member">
-<span class="avatar">${esc(m.avatar)}</span>
-<div>
-<b>${esc(m.username)}</b>
-<small>${m.role} • ${esc(m.rank)}</small>
-</div>
-${isOwner && m.id !== me.id ? `<button onclick="kick(${m.id})">Kick</button>` : ''}
-</div>
-`).join('');
+    $('#members').innerHTML = d.members.map(m=>`
+      <div class="member">
+        <span>${esc(m.avatar)}</span>
+        <b>${esc(m.username)}</b>
+        ${isOwner && m.id!==me.id ? `<button onclick="kick(${m.id})">Kick</button>`:''}
+      </div>
+    `).join('');
 
-const full = p.current_players >= p.max_players;
+    $('#joinBtn').style.display = (!isMember && p.current_players < p.max_players) ? 'block' : 'none';
+    $('#leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
 
-$('#joinBtn').style.display = (!isMember && !full) ? 'block' : 'none';
+    $('#ownerControls').innerHTML = isOwner
+      ? `<button onclick="closeParty()">Close Party</button>`
+      : '';
 
-$('#joinBtn').textContent =
-isMember ? 'View Party' :
-full ? 'Party Full' :
-'Join Party';
+    if(isMember){
+      $('#chatLog').innerHTML = d.messages.map(m=>`
+        <div class="msg">
+          <b>${esc(m.username)}</b>: ${esc(m.body)}
+        </div>
+      `).join('');
 
-$('#joinBtn').disabled = full;
+      if(d.messages.length !== last){
+        $('#chatLog').scrollTop = $('#chatLog').scrollHeight;
+        last = d.messages.length;
+      }
+    }else{
+      $('#chatLog').innerHTML = '<p>Join to view chat</p>';
+    }
 
-$('#leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
-
-$('#ownerControls').innerHTML = isOwner
-? '<button class="ghost danger" onclick="closeParty()">Close Party</button>'
-: '';
-
-if(isMember){
-$('#chatLog').innerHTML = d.messages.map(m => `
-<div class="msg ${m.user_id === me.id ? 'me' : ''}">
-<b>${esc(m.username)}</b>
-<p>${esc(m.body)}</p>
-<small>${ago(m.created_at)}</small>
-</div>
-`).join('');
-
-if(d.messages.length !== lastCount){
-$('#chatLog').scrollTop = $('#chatLog').scrollHeight;
-lastCount = d.messages.length;
-}
-}else{
-$('#chatLog').innerHTML = '<p class="notice">Join the party to view chat.</p>';
-}
+  }catch(e){
+    console.error(e);
+  }
 }
 
-$('#joinBtn').onclick = async () => {
-if($('#joinBtn').disabled)
-return uiAlert('This party is full. Try another party.','Party full','🚫');
-
-try{
-let r = await api('/api/party/' + POST_ID + '/join', {method:'POST'});
-location.href = (r.redirect || '').replace('/party/', 'party.html?id=').replace('/lfg','find-players.html');
-}catch(e){
-uiAlert(e.message,'Could not join','⚠️');
-}
+$('#joinBtn').onclick = async ()=>{
+  await api('/api/party/'+POST_ID+'/join',{method:'POST'});
+  loadParty();
 };
 
-$('#leaveBtn').onclick = async () => {
-if(await uiConfirm('Leave this party?','Leave party','🚪')){
-try{
-let r = await api('/api/party/' + POST_ID + '/leave', {method:'POST'});
-location.href = (r.redirect || '').replace('/party/', 'party.html?id=').replace('/lfg','find-players.html');
-}catch(e){
-uiAlert(e.message,'Could not leave','⚠️');
-}
-}
+$('#leaveBtn').onclick = async ()=>{
+  if(await uiConfirm('Leave party?')){
+    await api('/api/party/'+POST_ID+'/leave',{method:'POST'});
+    location.href='find-players.html';
+  }
 };
 
-$('#send').onclick = async () => {
-let body = $('#msg').value.trim();
-if(!body) return;
+$('#send').onclick = async ()=>{
+  const body = $('#msg').value.trim();
+  if(!body) return;
 
-try{
-await api('/api/party/' + POST_ID + '/messages', {
-method:'POST',
-body: JSON.stringify({body})
-});
-$('#msg').value = '';
-loadParty();
-refreshBell();
-}catch(e){
-uiAlert(e.message,'Message not sent','💬');
-}
+  await api('/api/party/'+POST_ID+'/messages',{
+    method:'POST',
+    body:JSON.stringify({body})
+  });
+
+  $('#msg').value='';
+  loadParty();
 };
-
-$('#msg').addEventListener('keydown', e => {
-if(e.key === 'Enter') $('#send').click();
-});
 
 async function kick(id){
-if(await uiConfirm('Kick this member?','Kick member','🥾')){
-try{
-await api('/api/party/' + POST_ID + '/kick', {
-method:'POST',
-body: JSON.stringify({user_id:id})
-});
-uiAlert('Member kicked.','Success','✅');
-loadParty();
-}catch(e){
-uiAlert(e.message,'Kick failed','⚠️');
-}
-}
+  if(await uiConfirm('Kick user?')){
+    await api('/api/party/'+POST_ID+'/kick',{
+      method:'POST',
+      body:JSON.stringify({user_id:id})
+    });
+    loadParty();
+  }
 }
 
 async function closeParty(){
-if(await uiConfirm('Close this party?','Close party','🔒')){
-try{
-let r = await api('/api/party/' + POST_ID + '/close', {method:'POST'});
-location.href = (r.redirect || '').replace('/party/', 'party.html?id=').replace('/lfg','find-players.html');
-}catch(e){
-uiAlert(e.message,'Close failed','⚠️');
-}
-}
+  if(await uiConfirm('Close party?','Close','🔒')){
+    const r = await api('/api/party/'+POST_ID+'/close',{method:'POST'});
+    location.href = r.redirect;
+  }
 }
 
+setInterval(loadParty,2000);
 loadParty();
-setInterval(loadParty, 2500);
