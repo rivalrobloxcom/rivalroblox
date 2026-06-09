@@ -1,7 +1,3 @@
-function rankIconHTML(rank, cls){
-    return `<span class="${cls}">${rank || ''}</span>`;
-}
-
 const limits=window.MODE_LIMITS;
 let state={game_mode:'Ranked 2v2',rank_requirement:'Diamond',region:'NA East',language:'English',mic_required:'Yes',party_size:2,tags:['Competitive','Ranked','Mic Required']};
 function cleanLabel(text){return text.replace(/^[^A-Za-z0-9]+\s*/,'').trim()}
