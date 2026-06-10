@@ -1,8 +1,6 @@
 let POST_ID = null;
 let last = 0;
 
-const el = (id) => document.getElementById(id);
-
 function initParty(){
   const p = new URLSearchParams(location.search);
   POST_ID = p.get('pid') || p.get('id');
@@ -17,9 +15,9 @@ function initParty(){
 }
 
 function bindButtons(){
-  const joinBtn = el('joinBtn');
-  const leaveBtn = el('leaveBtn');
-  const sendBtn = el('send');
+  const joinBtn = document.getElementById('joinBtn');
+  const leaveBtn = document.getElementById('leaveBtn');
+  const sendBtn = document.getElementById('send');
 
   if(joinBtn && !joinBtn.dataset.bound){
     joinBtn.dataset.bound = "1";
@@ -40,7 +38,7 @@ function bindButtons(){
   if(sendBtn && !sendBtn.dataset.bound){
     sendBtn.dataset.bound = "1";
     sendBtn.onclick = async ()=>{
-      const input = el('msg');
+      const input = document.getElementById('msg');
       if(!input?.value.trim()) return;
 
       await api(`/api/party/${POST_ID}/message`, {
@@ -67,15 +65,15 @@ async function loadParty(){
     const isOwner = member?.role === 'owner';
     const isMember = !!member;
 
-    el('partyTitle').textContent = p.title;
-    el('partyDesc').textContent = p.description;
-    el('partyMode').textContent = p.game_mode;
-    el('partyRank').textContent = p.rank_requirement;
-    el('partyRegion').textContent = p.region;
-    el('partyCount').textContent =
+    document.getElementById('partyTitle').textContent = p.title;
+    document.getElementById('partyDesc').textContent = p.description;
+    document.getElementById('partyMode').textContent = p.game_mode;
+    document.getElementById('partyRank').textContent = p.rank_requirement;
+    document.getElementById('partyRegion').textContent = p.region;
+    document.getElementById('partyCount').textContent =
       `${p.current_players}/${p.max_players}`;
 
-    el('members').innerHTML = members.map(m => `
+    document.getElementById('members').innerHTML = members.map(m => `
       <div class="member">
         <span>${esc(m.avatar||'😎')}</span>
         <b>${esc(m.username)}</b>
@@ -86,18 +84,15 @@ async function loadParty(){
       </div>
     `).join('');
 
-    el('joinBtn').style.display = (!isMember ? 'block':'none');
-    el('leaveBtn').style.display = (isMember && !isOwner ? 'block':'none');
+    document.getElementById('joinBtn').style.display = (!isMember ? 'block':'none');
+    document.getElementById('leaveBtn').style.display = (isMember && !isOwner ? 'block':'none');
 
-    el('ownerControls').innerHTML = isOwner
-      ? `<button onclick="closeParty()">Close Party</button>`
-      : '';
+    document.getElementById('ownerControls').innerHTML =
+      isOwner ? `<button onclick="closeParty()">Close Party</button>` : '';
 
-    el('chatLog').innerHTML = isMember
+    document.getElementById('chatLog').innerHTML = isMember
       ? messages.map(m=>`
-        <div>
-          <b>${esc(m.username)}</b>: ${esc(m.body)}
-        </div>
+        <div><b>${esc(m.username)}</b>: ${esc(m.body)}</div>
       `).join('')
       : '<p>Join to view chat</p>';
 
@@ -108,7 +103,6 @@ async function loadParty(){
   }
 }
 
-/* GLOBALS */
 window.kick = async (id)=>{
   await api(`/api/party/${POST_ID}/kick`, {
     method:'POST',
