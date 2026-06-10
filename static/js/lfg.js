@@ -26,6 +26,21 @@ function setupFilterDropdowns(){
   document.addEventListener('click',()=>$$('.filter-select').forEach(s=>s.classList.remove('open')));
 }
 
+function rankIconHTML(rank, cls=''){
+  if(!rank) return '';
+  const icons={'Unranked':'⚪','Bronze':'🥉','Silver':'🥈','Gold':'🥇','Platinum':'🔷','Diamond':'💎','Onyx':'⚫','Nemesis':'☠️','Archnemesis':'👑'};
+  return `<span class="${cls}">${icons[rank]||'🏆'}</span>`;
+}
+
+function ago(timestamp){
+  if(!timestamp) return '';
+  const seconds = Math.floor(Date.now()/1000) - timestamp;
+  if(seconds<60)return seconds+'s ago';
+  if(seconds<3600)return Math.floor(seconds/60)+'m ago';
+  if(seconds<86400)return Math.floor(seconds/3600)+'h ago';
+  return Math.floor(seconds/86400)+'d ago';
+}
+
 function render(){
   let q=$('#search').value.toLowerCase();
   let mf=filters.modeFilter,rf=filters.rankFilter,reg=filters.regionFilter,lf=filters.langFilter;
