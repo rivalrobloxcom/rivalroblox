@@ -1,5 +1,5 @@
-const el = (s) => document.querySelector(s);
-const els = (s) => [...document.querySelectorAll(s)];
+window.$ = (s) => document.querySelector(s);
+window.$$ = (s) => [...document.querySelectorAll(s)];
 
 function esc(s){
   return String(s ?? '').replace(/[&<>"']/g, m => ({
@@ -44,7 +44,6 @@ function uiAlert(msg, title='Notice', icon='⚡'){
     m.className = 'ui-modal open';
     m.innerHTML = `
       <div class="ui-modal-card">
-        <button class="ui-modal-x">×</button>
         <div class="ui-modal-icon">${icon}</div>
         <h3>${title}</h3>
         <p>${msg}</p>
