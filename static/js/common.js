@@ -1,24 +1,16 @@
-window.$ = (s) => document.querySelector(s);
-window.$$ = (s) => [...document.querySelectorAll(s)];
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 
 function esc(s){
   return String(s ?? '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'":'&#39;'
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
 }
 
 function apiTarget(url){
-  const base =
-    (window.RIVALS_API_BASE_URL ||
-     localStorage.getItem('RIVALS_API_BASE_URL') ||
-     'https://rivalroblox.pythonanywhere.com').replace(/\/$/, '');
-
-  if(url.startsWith('http')) return url;
-  if(!url.startsWith('/')) url = '/' + url;
+  const base = (window.RIVALS_API_BASE_URL || localStorage.getItem('RIVALS_API_BASE_URL') || 'https://rivalroblox.pythonanywhere.com').replace(/\/$/, '');
+  if (url.startsWith('http')) return url;
+  if (!url.startsWith('/')) url = '/' + url;
   return base + url;
 }
 
@@ -28,52 +20,128 @@ async function api(url, opts = {}){
     headers: {'Content-Type':'application/json'},
     ...opts
   });
-
   const j = await r.json().catch(()=>({}));
-
-  if(!r.ok){
+  if (!r.ok) {
     const err = new Error(j.error || 'Request failed');
     err.status = r.status;
     throw err;
   }
-
   return j;
 }
 
-/* ALERT */
 function uiAlert(msg, title='Notice', icon='⚡'){
-  return new Promise(res=>{
+  return new Promise(resolve=>{
     const m = document.createElement('div');
-    m.className='ui-modal open';
-    m.innerHTML=`
+    m.className = 'ui-modal open';
+    m.innerHTML = `
       <div class="ui-modal-card">
-        <div>${icon}</div>
+        <button class="ui-modal-x">×</button>
+        <div class="ui-modal-icon">${icon}</div>
         <h3>${title}</h3>
         <p>${msg}</p>
-        <button>OK</button>
+        <div class="ui-modal-actions">
+          <button class="primary">OK</button>
+        </div>
       </div>
     `;
     document.body.appendChild(m);
-    m.onclick=()=>{m.remove();res();};
+    m.querySelector('button').onclick = () => { m.remove(); resolve(); };
   });
 }
 
-/* CONFIRM */
 function uiConfirm(msg, title='Confirm', icon='⚠️'){
-  return new Promise(res=>{
-    const m=document.createElement('div');
-    m.className='ui-modal open';
-    m.innerHTML=`
+  return new Promise(resolve=>{
+    const m = document.createElement('div');
+    m.className = 'ui-modal open';
+    m.innerHTML = `
       <div class="ui-modal-card">
-        <div>${icon}</div>
+        <div class="ui-modal-icon">${icon}</div>
         <h3>${title}</h3>
         <p>${msg}</p>
-        <button id="no">Cancel</button>
-        <button id="yes">OK</button>
+        <div class="ui-modal-actions">
+          <button class="ghost" id="noBtn">Cancel</button>
+          <button class="primary" id="yesBtn">Confirm</button>
+        </div>
       </div>
     `;
     document.body.appendChild(m);
-    m.querySelector('#no').onclick=()=>{m.remove();res(false);};
-    m.querySelector('#yes').onclick=()=>{m.remove();res(true);};
+    m.querySelector('#noBtn').onclick = () => { m.remove(); resolve(false); };
+    m.querySelector('#yesBtn').onclick = () => { m.remove(); resolve(true); };
   });
 }
+
+async function loadMe(){
+  try{
+    const r = await api('/api/me');
+    const u = r.user;
+    $('#profileBtn').textContent = u.username;
+    $('#profileName').textContent = u.username;
+    $('#profileMeta').textContent = u.rank + ' • ' + u.region;
+  }catch(e){
+    $('#profileBtn').textContent = 'Guest';
+  }
+}
+
+async function loadNotifs(){
+  try{
+    const r = await api('/api/notifications/count');
+    const bell = $('#bell');
+    if (r.count > 0){
+      bell.classList.add('has-alert');
+      bell.innerHTML = `<i class="bell-icon"></i><span>${r.count}</span>`;
+    }
+  }catch(e){}
+}
+
+function setupBell(){
+  const bell = $('#bell');
+  const panel = $('#notifyPanel');
+  const close = $('#closeNotify');
+  if (!bell || !panel) return;
+
+  bell.onclick = async () => {
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')){
+      try{
+        const r = await api('/api/notifications');
+        const box = $('#notifyContent');
+        let html = '';
+
+        if(r.notifications && r.notifications.length){
+          html += '<div class="notify-section"><h3>Notifications</h3>';
+          html += r.notifications.map(n => 
+            `<div class="notif notify-item" data-post-id="${n.post_id||''}">${esc(n.message)}<small>${new Date(n.created_at*1000).toLocaleString()}</small></div>`
+          ).join('');
+          html += '</div>';
+        }
+
+        if(r.parties && r.parties.length){
+          html += '<div class="notify-section"><h3>My Parties</h3>';
+          html += r.parties.map(p => 
+            `<div class="notify-item party-item" data-post-id="${p.id}"><strong>${esc(p.title)}</strong><small>${p.current_players||1}/${p.max_players} players</small></div>`
+          ).join('');
+          html += '</div>';
+        }
+
+        box.innerHTML = html || '<div class="empty">No notifications yet.</div>';
+
+        box.querySelectorAll('.notify-item').forEach(item=>{
+          item.addEventListener('click', ()=>{
+            const pid = item.dataset.postId;
+            if(pid) location.href = `party.html?pid=${pid}`;
+          });
+        });
+      }catch(e){
+        $('#notifyContent').innerHTML = '<div class="error">Failed to load notifications</div>';
+      }
+    }
+  };
+
+  close.onclick = () => panel.classList.remove('open');
+}
+
+window.addEventListener('load', ()=>{
+  loadMe();
+  loadNotifs();
+  setupBell();
+});
