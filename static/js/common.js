@@ -1,6 +1,12 @@
+// =======================
+// GLOBAL DOM HELPERS
+// =======================
 window.$ = (s) => document.querySelector(s);
 window.$$ = (s) => [...document.querySelectorAll(s)];
 
+// =======================
+// ESCAPE HTML
+// =======================
 function esc(s){
   return String(s ?? '').replace(/[&<>"']/g, m => ({
     '&':'&amp;',
@@ -11,6 +17,9 @@ function esc(s){
   }[m]));
 }
 
+// =======================
+// API HANDLER
+// =======================
 function apiTarget(url){
   const base = (window.RIVALS_API_BASE_URL ||
     localStorage.getItem('RIVALS_API_BASE_URL') ||
@@ -35,9 +44,13 @@ async function api(url, opts = {}){
     err.status = r.status;
     throw err;
   }
+
   return j;
 }
 
+// =======================
+// UI MODALS
+// =======================
 function uiAlert(msg, title='Notice', icon='⚡'){
   return new Promise(resolve=>{
     const m = document.createElement('div');
@@ -47,9 +60,7 @@ function uiAlert(msg, title='Notice', icon='⚡'){
         <div class="ui-modal-icon">${icon}</div>
         <h3>${title}</h3>
         <p>${msg}</p>
-        <div class="ui-modal-actions">
-          <button class="primary">OK</button>
-        </div>
+        <button class="primary">OK</button>
       </div>
     `;
     document.body.appendChild(m);
@@ -67,12 +78,13 @@ function uiConfirm(msg, title='Confirm', icon='⚠️'){
         <h3>${title}</h3>
         <p>${msg}</p>
         <div class="ui-modal-actions">
-          <button class="ghost" id="no">Cancel</button>
-          <button class="primary" id="yes">Confirm</button>
+          <button id="no">Cancel</button>
+          <button id="yes">Confirm</button>
         </div>
       </div>
     `;
     document.body.appendChild(m);
+
     m.querySelector('#no').onclick = () => { m.remove(); resolve(false); };
     m.querySelector('#yes').onclick = () => { m.remove(); resolve(true); };
   });
