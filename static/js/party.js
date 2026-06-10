@@ -1,7 +1,9 @@
-const POST_ID = new URLSearchParams(location.search).get('pid') || new URLSearchParams(location.search).get('id');
+const urlParams = new URLSearchParams(window.location.search);
+const POST_ID = urlParams.get('pid') || urlParams.get('id');
+
 if(!POST_ID){
   uiAlert('Missing party ID in URL','Error','⚠️').then(()=>location.href='find-players.html');
-  throw new Error('Missing party ID');
+  throw new Error('Missing POST_ID');
 }
 
 let last = 0;
@@ -46,7 +48,7 @@ async function loadParty(){
       `).join('');
       if(messages.length !== last){
         const chat = $('#chatLog');
-        chat.scrollTop = chat.scrollHeight;
+        if(chat) chat.scrollTop = chat.scrollHeight;
         last = messages.length;
       }
     }else{
@@ -55,7 +57,7 @@ async function loadParty(){
   }catch(e){
     console.error(e);
     if(e.status === 404){
-      uiAlert('Party not found or closed','Error');
+      uiAlert('Party not found or has been closed','Error','⚠️');
     }
   }
 }
