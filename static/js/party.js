@@ -1,9 +1,9 @@
 let POST_ID = null;
 let last = 0;
 
-function $(id) {
-    return document.getElementById(id);
-}
+/* =========================
+   INIT
+========================= */
 
 function initParty() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -27,10 +27,22 @@ function initParty() {
     loadParty();
 }
 
+/* =========================
+   HELPERS (NO $ FUNCTION!)
+========================= */
+
+function el(id) {
+    return document.getElementById(id);
+}
+
+/* =========================
+   BUTTON BINDING
+========================= */
+
 function bindButtons() {
-    const joinBtn = $('joinBtn');
-    const leaveBtn = $('leaveBtn');
-    const sendBtn = $('send');
+    const joinBtn = el('joinBtn');
+    const leaveBtn = el('leaveBtn');
+    const sendBtn = el('send');
 
     if (joinBtn && !joinBtn.dataset.bound) {
         joinBtn.dataset.bound = "1";
@@ -68,7 +80,7 @@ function bindButtons() {
         sendBtn.dataset.bound = "1";
 
         sendBtn.onclick = async () => {
-            const input = $('msg');
+            const input = el('msg');
             if (!input || !input.value.trim()) return;
 
             try {
@@ -86,6 +98,10 @@ function bindButtons() {
     }
 }
 
+/* =========================
+   LOAD PARTY
+========================= */
+
 async function loadParty() {
     if (!POST_ID) return;
 
@@ -101,15 +117,15 @@ async function loadParty() {
         const isOwner = member && member.role === 'owner';
         const isMember = !!member;
 
-        $('partyTitle').textContent = p.title || 'Party';
-        $('partyDesc').textContent = p.description || '';
-        $('partyMode').textContent = p.game_mode || '';
-        $('partyRank').textContent = p.rank_requirement || '';
-        $('partyRegion').textContent = p.region || '';
-        $('partyCount').textContent =
+        el('partyTitle').textContent = p.title || 'Party';
+        el('partyDesc').textContent = p.description || '';
+        el('partyMode').textContent = p.game_mode || '';
+        el('partyRank').textContent = p.rank_requirement || '';
+        el('partyRegion').textContent = p.region || '';
+        el('partyCount').textContent =
             `${p.current_players || members.length}/${p.max_players || 2}`;
 
-        $('members').innerHTML = members.map(m => `
+        el('members').innerHTML = members.map(m => `
             <div class="member">
                 <span>${esc(m.avatar || '😎')}</span>
                 <b>${esc(m.username)}</b>
@@ -126,15 +142,15 @@ async function loadParty() {
             !isMember &&
             (p.current_players || members.length) < (p.max_players || 2);
 
-        $('joinBtn').style.display = canJoin ? 'block' : 'none';
-        $('leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
+        el('joinBtn').style.display = canJoin ? 'block' : 'none';
+        el('leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
 
-        $('ownerControls').innerHTML = isOwner
+        el('ownerControls').innerHTML = isOwner
             ? `<button onclick="closeParty()">Close Party</button>`
             : '';
 
         if (isMember) {
-            $('chatLog').innerHTML = messages.map(m => `
+            el('chatLog').innerHTML = messages.map(m => `
                 <div class="msg">
                     <b>${esc(m.username)}</b>: ${esc(m.body)}
                     <small>${new Date((m.created_at || 0) * 1000).toLocaleTimeString([], {
@@ -145,12 +161,12 @@ async function loadParty() {
             `).join('');
 
             if (messages.length !== last) {
-                const chat = $('chatLog');
+                const chat = el('chatLog');
                 if (chat) chat.scrollTop = chat.scrollHeight;
                 last = messages.length;
             }
         } else {
-            $('chatLog').innerHTML = '<p>Join to view chat</p>';
+            el('chatLog').innerHTML = '<p>Join to view chat</p>';
         }
 
         bindButtons();
@@ -171,7 +187,7 @@ async function loadParty() {
 }
 
 /* =========================
-   GLOBAL FUNCTIONS (FIX)
+   GLOBAL FUNCTIONS (FIXED)
 ========================= */
 
 window.kick = async function (userId) {
