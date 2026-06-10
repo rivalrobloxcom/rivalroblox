@@ -1,81 +1,115 @@
-let POST_ID=null;
-let last=0;
+let POST_ID = null;
 
-function init(){
-  const p=new URLSearchParams(location.search);
-  POST_ID=p.get('pid')||p.get('id');
+function getPostId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('pid') || params.get('id');
+}
 
+async function loadParty(){
+  POST_ID = getPostId();
   if(!POST_ID){
-    uiAlert('Missing party ID');
+    uiAlert('Missing party ID in URL','Error','⚠️').then(()=>location.href='find-players.html');
     return;
   }
 
-  load();
+  try{
+    const d = await api('/api/party/'+POST_ID);
+    const p = d.post;
+    const me = d.me;
+    const members = d.members || [];
+    const messages = d.messages || [];
+    const member = members.find(m=>m.id===me.id);
+    const isOwner = member && member.role==='owner';
+    const isMember = !!member;
+
+    $('#partyTitle').textContent = p.title || 'Party';
+    $('#partyDesc').textContent = p.description || '';
+    $('#partyMode').textContent = p.game_mode || '';
+    $('#partyRank').textContent = p.rank_requirement || '';
+    $('#partyRegion').textContent = p.region || '';
+    $('#partyCount').textContent = `${p.current_players || members.length}/${p.max_players || 2}`;
+
+    $('#members').innerHTML = members.map(m=>`
+      <div class="member">
+        <span>${esc(m.avatar||'😎')}</span>
+        <b>${esc(m.username)}</b>
+        ${isOwner && m.id!==me.id ? `<button onclick="kick(${m.id})">Kick</button>`:''}
+        ${m.role==='owner' ? '<span class="owner-badge">Owner</span>' : ''}
+      </div>
+    `).join('');
+
+    $('#joinBtn').style.display = (!isMember && (p.current_players || members.length) < (p.max_players || 2)) ? 'block' : 'none';
+    $('#leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
+    $('#ownerControls').innerHTML = isOwner ? `<button onclick="closeParty()">Close Party</button>` : '';
+
+    if(isMember){
+      $('#chatLog').innerHTML = messages.map(m=>`
+        <div class="msg">
+          <b>${esc(m.username)}</b>: ${esc(m.body)}
+          <small>${new Date((m.created_at||0)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</small>
+        </div>
+      `).join('');
+      const chat = $('#chatLog');
+      if(chat) chat.scrollTop = chat.scrollHeight;
+    }else{
+      $('#chatLog').innerHTML = '<p>Join to view chat</p>';
+    }
+  }catch(e){
+    console.error(e);
+    if(e.status === 404){
+      uiAlert('Party not found or has been closed','Error','⚠️');
+    }
+  }
 }
 
-async function load(){
-  const d=await api(`/api/party/${POST_ID}`);
-
-  const p=d.post;
-  const me=d.me;
-  const members=d.members||[];
-  const messages=d.messages||[];
-
-  const isMember=members.some(m=>m.id===me?.id);
-  const isOwner=members.find(m=>m.id===me?.id)?.role==='owner';
-
-  $('#partyTitle').textContent=p.title;
-  $('#partyDesc').textContent=p.description;
-
-  $('#members').innerHTML=members.map(m=>`
-    <div>
-      <b>${esc(m.username)}</b>
-      ${isOwner&&m.id!==me?.id?`<button onclick="kick(${m.id})">Kick</button>`:''}
-    </div>
-  `).join('');
-
-  $('#joinBtn').style.display=isMember?'none':'block';
-  $('#leaveBtn').style.display=isMember?'block':'none';
-
-  $('#chatLog').innerHTML=isMember
-    ? messages.map(m=>`<div><b>${esc(m.username)}</b>: ${esc(m.body)}</div>`).join('')
-    : '<p>Join to chat</p>';
-
-  bind();
-}
-
-function bind(){
-  $('#joinBtn').onclick=async()=>{
-    await api(`/api/party/${POST_ID}/join`,{method:'POST'});
-    load();
-  };
-
-  $('#leaveBtn').onclick=async()=>{
-    await api(`/api/party/${POST_ID}/leave`,{method:'POST'});
-    location.href='find-players.html';
-  };
-
-  $('#send').onclick=async()=>{
-    const i=$('#msg');
-    if(!i.value.trim())return;
-
-    await api(`/api/party/${POST_ID}/messages`,{
-      method:'POST',
-      body:JSON.stringify({message:i.value})
-    });
-
-    i.value='';
-    load();
-  };
-}
-
-window.kick=async(id)=>{
-  await api(`/api/party/${POST_ID}/kick`,{
-    method:'POST',
-    body:JSON.stringify({user_id:id})
-  });
-  load();
+$('#joinBtn').onclick = async ()=>{
+  if(!POST_ID) return;
+  try{
+    await api('/api/party/'+POST_ID+'/join',{method:'POST'});
+    loadParty();
+  }catch(e){ alert(e.message || 'Failed to join'); }
 };
 
-window.addEventListener('load',init);
-setInterval(()=>POST_ID&&load(),3000);
+$('#leaveBtn').onclick = async ()=>{
+  if(!POST_ID) return;
+  if(await uiConfirm('Leave party?')){
+    try{
+      await api('/api/party/'+POST_ID+'/leave',{method:'POST'});
+      location.href='find-players.html';
+    }catch(e){ alert('Failed to leave'); }
+  }
+};
+
+$('#send').onclick = async ()=>{
+  if(!POST_ID) return;
+  const body = $('#msg').value.trim();
+  if(!body) return;
+  try{
+    await api('/api/party/'+POST_ID+'/messages',{method:'POST',body:JSON.stringify({body})});
+    $('#msg').value='';
+    loadParty();
+  }catch(e){ alert('Failed to send message'); }
+};
+
+async function kick(id){
+  if(!POST_ID) return;
+  if(await uiConfirm('Kick this user?')){
+    try{
+      await api('/api/party/'+POST_ID+'/kick',{method:'POST',body:JSON.stringify({user_id:id})});
+      loadParty();
+    }catch(e){ alert('Failed to kick'); }
+  }
+}
+
+async function closeParty(){
+  if(!POST_ID) return;
+  if(await uiConfirm('Close party?','Close','🔒')){
+    try{
+      const r = await api('/api/party/'+POST_ID+'/close',{method:'POST'});
+      location.href = r.redirect || 'find-players.html';
+    }catch(e){ alert('Failed to close party'); }
+  }
+}
+
+window.addEventListener('load', loadParty);
+setInterval(() => { if(POST_ID) loadParty(); }, 2500);
