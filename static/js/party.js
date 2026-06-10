@@ -1,224 +1,126 @@
 let POST_ID = null;
 let last = 0;
 
-/* =========================
-   INIT
-========================= */
+const el = (id) => document.getElementById(id);
 
-function initParty() {
-    const urlParams = new URLSearchParams(window.location.search);
+function initParty(){
+  const p = new URLSearchParams(location.search);
+  POST_ID = p.get('pid') || p.get('id');
 
-    POST_ID = urlParams.get('pid') || urlParams.get('id');
+  if(!POST_ID){
+    uiAlert('Missing party ID','Error','⚠️')
+      .then(()=>location.href='find-players.html');
+    return;
+  }
 
-    if (!POST_ID || POST_ID === 'null' || POST_ID === 'undefined' || POST_ID.trim() === '') {
-        console.error('Invalid party ID:', POST_ID);
-
-        uiAlert(
-            'Missing or invalid party ID in URL',
-            'Error',
-            '⚠️'
-        ).then(() => {
-            location.href = 'find-players.html';
-        });
-
-        return;
-    }
-
-    loadParty();
+  loadParty();
 }
 
-/* =========================
-   HELPERS (NO $ FUNCTION!)
-========================= */
+function bindButtons(){
+  const joinBtn = el('joinBtn');
+  const leaveBtn = el('leaveBtn');
+  const sendBtn = el('send');
 
-function el(id) {
-    return document.getElementById(id);
+  if(joinBtn && !joinBtn.dataset.bound){
+    joinBtn.dataset.bound = "1";
+    joinBtn.onclick = async ()=>{
+      await api(`/api/party/${POST_ID}/join`, {method:'POST'});
+      loadParty();
+    };
+  }
+
+  if(leaveBtn && !leaveBtn.dataset.bound){
+    leaveBtn.dataset.bound = "1";
+    leaveBtn.onclick = async ()=>{
+      await api(`/api/party/${POST_ID}/leave`, {method:'POST'});
+      location.href='find-players.html';
+    };
+  }
+
+  if(sendBtn && !sendBtn.dataset.bound){
+    sendBtn.dataset.bound = "1";
+    sendBtn.onclick = async ()=>{
+      const input = el('msg');
+      if(!input?.value.trim()) return;
+
+      await api(`/api/party/${POST_ID}/message`, {
+        method:'POST',
+        body: JSON.stringify({message: input.value})
+      });
+
+      input.value='';
+      loadParty();
+    };
+  }
 }
 
-/* =========================
-   BUTTON BINDING
-========================= */
+async function loadParty(){
+  try{
+    const d = await api(`/api/party/${POST_ID}`);
 
-function bindButtons() {
-    const joinBtn = el('joinBtn');
-    const leaveBtn = el('leaveBtn');
-    const sendBtn = el('send');
+    const p = d.post;
+    const me = d.me;
+    const members = d.members || [];
+    const messages = d.messages || [];
 
-    if (joinBtn && !joinBtn.dataset.bound) {
-        joinBtn.dataset.bound = "1";
+    const member = members.find(m => m.id === me?.id);
+    const isOwner = member?.role === 'owner';
+    const isMember = !!member;
 
-        joinBtn.onclick = async () => {
-            try {
-                await api(`/api/party/${encodeURIComponent(POST_ID)}/join`, {
-                    method: "POST"
-                });
+    el('partyTitle').textContent = p.title;
+    el('partyDesc').textContent = p.description;
+    el('partyMode').textContent = p.game_mode;
+    el('partyRank').textContent = p.rank_requirement;
+    el('partyRegion').textContent = p.region;
+    el('partyCount').textContent =
+      `${p.current_players}/${p.max_players}`;
 
-                loadParty();
-            } catch (e) {
-                console.error("Join failed", e);
-            }
-        };
-    }
+    el('members').innerHTML = members.map(m => `
+      <div class="member">
+        <span>${esc(m.avatar||'😎')}</span>
+        <b>${esc(m.username)}</b>
+        ${isOwner && m.id !== me?.id
+          ? `<button onclick="kick(${m.id})">Kick</button>`
+          : ''}
+        ${m.role==='owner' ? '<span>Owner</span>' : ''}
+      </div>
+    `).join('');
 
-    if (leaveBtn && !leaveBtn.dataset.bound) {
-        leaveBtn.dataset.bound = "1";
+    el('joinBtn').style.display = (!isMember ? 'block':'none');
+    el('leaveBtn').style.display = (isMember && !isOwner ? 'block':'none');
 
-        leaveBtn.onclick = async () => {
-            try {
-                await api(`/api/party/${encodeURIComponent(POST_ID)}/leave`, {
-                    method: "POST"
-                });
+    el('ownerControls').innerHTML = isOwner
+      ? `<button onclick="closeParty()">Close Party</button>`
+      : '';
 
-                location.href = 'find-players.html';
-            } catch (e) {
-                console.error("Leave failed", e);
-            }
-        };
-    }
+    el('chatLog').innerHTML = isMember
+      ? messages.map(m=>`
+        <div>
+          <b>${esc(m.username)}</b>: ${esc(m.body)}
+        </div>
+      `).join('')
+      : '<p>Join to view chat</p>';
 
-    if (sendBtn && !sendBtn.dataset.bound) {
-        sendBtn.dataset.bound = "1";
+    bindButtons();
 
-        sendBtn.onclick = async () => {
-            const input = el('msg');
-            if (!input || !input.value.trim()) return;
-
-            try {
-                await api(`/api/party/${encodeURIComponent(POST_ID)}/message`, {
-                    method: "POST",
-                    body: JSON.stringify({ message: input.value })
-                });
-
-                input.value = '';
-                loadParty();
-            } catch (e) {
-                console.error("Message failed", e);
-            }
-        };
-    }
+  }catch(e){
+    console.error(e);
+  }
 }
 
-/* =========================
-   LOAD PARTY
-========================= */
-
-async function loadParty() {
-    if (!POST_ID) return;
-
-    try {
-        const d = await api(`/api/party/${encodeURIComponent(POST_ID)}`);
-
-        const p = d.post;
-        const me = d.me;
-        const members = d.members || [];
-        const messages = d.messages || [];
-
-        const member = members.find(m => m.id === me?.id);
-        const isOwner = member && member.role === 'owner';
-        const isMember = !!member;
-
-        el('partyTitle').textContent = p.title || 'Party';
-        el('partyDesc').textContent = p.description || '';
-        el('partyMode').textContent = p.game_mode || '';
-        el('partyRank').textContent = p.rank_requirement || '';
-        el('partyRegion').textContent = p.region || '';
-        el('partyCount').textContent =
-            `${p.current_players || members.length}/${p.max_players || 2}`;
-
-        el('members').innerHTML = members.map(m => `
-            <div class="member">
-                <span>${esc(m.avatar || '😎')}</span>
-                <b>${esc(m.username)}</b>
-                ${isOwner && m.id !== me?.id
-                    ? `<button onclick="kick(${m.id})">Kick</button>`
-                    : ''}
-                ${m.role === 'owner'
-                    ? '<span class="owner-badge">Owner</span>'
-                    : ''}
-            </div>
-        `).join('');
-
-        const canJoin =
-            !isMember &&
-            (p.current_players || members.length) < (p.max_players || 2);
-
-        el('joinBtn').style.display = canJoin ? 'block' : 'none';
-        el('leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
-
-        el('ownerControls').innerHTML = isOwner
-            ? `<button onclick="closeParty()">Close Party</button>`
-            : '';
-
-        if (isMember) {
-            el('chatLog').innerHTML = messages.map(m => `
-                <div class="msg">
-                    <b>${esc(m.username)}</b>: ${esc(m.body)}
-                    <small>${new Date((m.created_at || 0) * 1000).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}</small>
-                </div>
-            `).join('');
-
-            if (messages.length !== last) {
-                const chat = el('chatLog');
-                if (chat) chat.scrollTop = chat.scrollHeight;
-                last = messages.length;
-            }
-        } else {
-            el('chatLog').innerHTML = '<p>Join to view chat</p>';
-        }
-
-        bindButtons();
-
-    } catch (e) {
-        console.error('Party load failed:', e);
-
-        if (e.status === 404) {
-            uiAlert(
-                'Party not found or has been closed',
-                'Error',
-                '⚠️'
-            ).then(() => {
-                location.href = 'find-players.html';
-            });
-        }
-    }
-}
-
-/* =========================
-   GLOBAL FUNCTIONS (FIXED)
-========================= */
-
-window.kick = async function (userId) {
-    try {
-        await api(`/api/party/${encodeURIComponent(POST_ID)}/kick`, {
-            method: "POST",
-            body: JSON.stringify({ userId })
-        });
-
-        loadParty();
-    } catch (e) {
-        console.error("Kick failed", e);
-    }
+/* GLOBALS */
+window.kick = async (id)=>{
+  await api(`/api/party/${POST_ID}/kick`, {
+    method:'POST',
+    body: JSON.stringify({userId:id})
+  });
+  loadParty();
 };
 
-window.closeParty = async function () {
-    try {
-        await api(`/api/party/${encodeURIComponent(POST_ID)}/close`, {
-            method: "POST"
-        });
-
-        location.href = 'find-players.html';
-    } catch (e) {
-        console.error("Close failed", e);
-    }
+window.closeParty = async ()=>{
+  await api(`/api/party/${POST_ID}/close`, {method:'POST'});
+  location.href='find-players.html';
 };
-
-/* ========================= */
 
 window.addEventListener('load', initParty);
-
-setInterval(() => {
-    if (POST_ID) loadParty();
-}, 2500);
+setInterval(()=>POST_ID && loadParty(), 2500);
