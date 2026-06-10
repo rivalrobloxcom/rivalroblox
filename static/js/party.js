@@ -1,6 +1,10 @@
 let POST_ID = null;
 let last = 0;
 
+function $(id) {
+    return document.getElementById(id);
+}
+
 function initParty() {
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -20,15 +24,13 @@ function initParty() {
         return;
     }
 
-    console.log('Loading party:', POST_ID);
-
     loadParty();
 }
 
 function bindButtons() {
-    const joinBtn = $('#joinBtn');
-    const leaveBtn = $('#leaveBtn');
-    const sendBtn = $('#send');
+    const joinBtn = $('joinBtn');
+    const leaveBtn = $('leaveBtn');
+    const sendBtn = $('send');
 
     if (joinBtn && !joinBtn.dataset.bound) {
         joinBtn.dataset.bound = "1";
@@ -66,7 +68,7 @@ function bindButtons() {
         sendBtn.dataset.bound = "1";
 
         sendBtn.onclick = async () => {
-            const input = $('#msg');
+            const input = $('msg');
             if (!input || !input.value.trim()) return;
 
             try {
@@ -85,7 +87,7 @@ function bindButtons() {
 }
 
 async function loadParty() {
-    if (!POST_ID || POST_ID === 'null' || POST_ID === 'undefined') return;
+    if (!POST_ID) return;
 
     try {
         const d = await api(`/api/party/${encodeURIComponent(POST_ID)}`);
@@ -99,20 +101,24 @@ async function loadParty() {
         const isOwner = member && member.role === 'owner';
         const isMember = !!member;
 
-        $('#partyTitle').textContent = p.title || 'Party';
-        $('#partyDesc').textContent = p.description || '';
-        $('#partyMode').textContent = p.game_mode || '';
-        $('#partyRank').textContent = p.rank_requirement || '';
-        $('#partyRegion').textContent = p.region || '';
-        $('#partyCount').textContent =
+        $('partyTitle').textContent = p.title || 'Party';
+        $('partyDesc').textContent = p.description || '';
+        $('partyMode').textContent = p.game_mode || '';
+        $('partyRank').textContent = p.rank_requirement || '';
+        $('partyRegion').textContent = p.region || '';
+        $('partyCount').textContent =
             `${p.current_players || members.length}/${p.max_players || 2}`;
 
-        $('#members').innerHTML = members.map(m => `
+        $('members').innerHTML = members.map(m => `
             <div class="member">
                 <span>${esc(m.avatar || '😎')}</span>
                 <b>${esc(m.username)}</b>
-                ${isOwner && m.id !== me?.id ? `<button onclick="kick(${m.id})">Kick</button>` : ''}
-                ${m.role === 'owner' ? '<span class="owner-badge">Owner</span>' : ''}
+                ${isOwner && m.id !== me?.id
+                    ? `<button onclick="kick(${m.id})">Kick</button>`
+                    : ''}
+                ${m.role === 'owner'
+                    ? '<span class="owner-badge">Owner</span>'
+                    : ''}
             </div>
         `).join('');
 
@@ -120,15 +126,15 @@ async function loadParty() {
             !isMember &&
             (p.current_players || members.length) < (p.max_players || 2);
 
-        $('#joinBtn').style.display = canJoin ? 'block' : 'none';
-        $('#leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
+        $('joinBtn').style.display = canJoin ? 'block' : 'none';
+        $('leaveBtn').style.display = (isMember && !isOwner) ? 'block' : 'none';
 
-        $('#ownerControls').innerHTML = isOwner
+        $('ownerControls').innerHTML = isOwner
             ? `<button onclick="closeParty()">Close Party</button>`
             : '';
 
         if (isMember) {
-            $('#chatLog').innerHTML = messages.map(m => `
+            $('chatLog').innerHTML = messages.map(m => `
                 <div class="msg">
                     <b>${esc(m.username)}</b>: ${esc(m.body)}
                     <small>${new Date((m.created_at || 0) * 1000).toLocaleTimeString([], {
@@ -139,12 +145,12 @@ async function loadParty() {
             `).join('');
 
             if (messages.length !== last) {
-                const chat = $('#chatLog');
+                const chat = $('chatLog');
                 if (chat) chat.scrollTop = chat.scrollHeight;
                 last = messages.length;
             }
         } else {
-            $('#chatLog').innerHTML = '<p>Join to view chat</p>';
+            $('chatLog').innerHTML = '<p>Join to view chat</p>';
         }
 
         bindButtons();
@@ -163,6 +169,37 @@ async function loadParty() {
         }
     }
 }
+
+/* =========================
+   GLOBAL FUNCTIONS (FIX)
+========================= */
+
+window.kick = async function (userId) {
+    try {
+        await api(`/api/party/${encodeURIComponent(POST_ID)}/kick`, {
+            method: "POST",
+            body: JSON.stringify({ userId })
+        });
+
+        loadParty();
+    } catch (e) {
+        console.error("Kick failed", e);
+    }
+};
+
+window.closeParty = async function () {
+    try {
+        await api(`/api/party/${encodeURIComponent(POST_ID)}/close`, {
+            method: "POST"
+        });
+
+        location.href = 'find-players.html';
+    } catch (e) {
+        console.error("Close failed", e);
+    }
+};
+
+/* ========================= */
 
 window.addEventListener('load', initParty);
 
