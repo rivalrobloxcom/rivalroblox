@@ -56,21 +56,82 @@ function ago(timestamp){
 }
 
 function render(){
-  let q=$('#search').value.toLowerCase();
+  let q = $('#search').value.toLowerCase();
 
-  let list=posts.filter(p=>{
-    let hay=[p.title,p.description,p.game_mode,p.rank_requirement,p.region,p.language,p.owner?.username,(p.tags||[]).join(' ')].join(' ').toLowerCase();
-    return !q || hay.includes(q);
+  let mf = filters.modeFilter,
+      rf = filters.rankFilter,
+      reg = filters.regionFilter,
+      lf = filters.langFilter;
+
+  let list = posts.filter(p=>{
+    let hay = [
+      p.title,
+      p.description,
+      p.game_mode,
+      p.rank_requirement,
+      p.region,
+      p.language,
+      p.owner?.username,
+      (p.tags||[]).join(' ')
+    ].join(' ').toLowerCase();
+
+    return (!q || hay.includes(q)) &&
+      (mf==='All Modes'||p.game_mode===mf) &&
+      (rf==='All Ranks'||p.rank_requirement===rf) &&
+      (reg==='All Regions'||p.region===reg) &&
+      (lf==='All Languages'||p.language===lf);
   });
 
-  $('#postsList').innerHTML = list.length
-    ? list.map(p=>`
-      <div class="post-card">
-        <h3>${esc(p.title)}</h3>
-        <button onclick="join(${p.id})">View</button>
-      </div>
-    `).join('')
-    : '<p>No posts found.</p>';
+  $('#postsList').innerHTML =
+    list.length
+      ? list.map(p=>`
+        <div class="post-card" data-id="${p.id}">
+
+          <div class="mode-badge">${short(p.game_mode)}</div>
+
+          <div>
+            <h3>${esc(p.title)}</h3>
+
+            <div>
+              ${(p.tags||[]).map(t=>`
+                <span class="pill ${t==='Mic Required'?'green':''}">
+                  ${esc(t)}
+                </span>
+              `).join(' ')}
+
+              <span class="pill rank-pill">
+                ${rankIconHTML(p.rank_requirement,'rank-icon tiny')}
+                ${esc(p.rank_requirement)}
+              </span>
+            </div>
+
+            <p>${esc(p.description)}</p>
+          </div>
+
+          <div class="hostchip">
+            <span class="avatar">${esc(p.owner?.avatar||'😎')}</span>
+
+            <div>
+              <b>${esc(p.owner?.username||'Unknown')}</b>
+              <small>
+                ${rankIconHTML(p.owner?.rank||p.rank_requirement,'rank-icon micro')}
+                ${esc(p.owner?.rank||'')} • ${esc(p.region)}
+              </small>
+            </div>
+          </div>
+
+          <div>
+            <b>${p.current_players} / ${p.max_players}</b>
+            <small>${ago(p.created_at)}</small>
+          </div>
+
+          <button class="primary joinstate" onclick="join(${p.id})">
+            View
+          </button>
+
+        </div>
+      `).join('')
+      : '<p>No posts found.</p>';
 }
 
 function join(id){
