@@ -96,13 +96,67 @@ async function loadNotifs(){
   try{
     const r = await api('/api/notifications/count');
     const bell = $('#bell');
-
     if (r.count > 0){
       bell.classList.add('has-alert');
       bell.innerHTML = `<i class="bell-icon"></i><span>${r.count}</span>`;
     }
   }catch(e){}
 }
+
+function setupBell(){
+  const bell = $('#bell');
+  const panel = $('#notifyPanel');
+  const close = $('#closeNotify');
+  if (!bell || !panel) return;
+
+  bell.onclick = async () => {
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')){
+      try{
+        const r = await api('/api/notifications');
+        const box = $('#notifyContent');
+        let html = '';
+
+        if(r.notifications && r.notifications.length){
+          html += '<div class="notify-section"><h3>Notifications</h3>';
+          html += r.notifications.map(n => 
+            `<div class="notif notify-item" data-post-id="${n.post_id||''}">${esc(n.message)}<small>${new Date(n.created_at*1000).toLocaleString()}</small></div>`
+          ).join('');
+          html += '</div>';
+        }
+
+        if(r.parties && r.parties.length){
+          html += '<div class="notify-section"><h3>My Parties</h3>';
+          html += r.parties.map(p => 
+            `<div class="notify-item party-item" data-post-id="${p.id}"><strong>${esc(p.title)}</strong><small>${p.current_players||1}/${p.max_players} players</small></div>`
+          ).join('');
+          html += '</div>';
+        }
+
+        box.innerHTML = html || '<div class="empty">No notifications yet.</div>';
+
+        // Click to open party
+        box.querySelectorAll('.notify-item').forEach(item=>{
+          item.addEventListener('click', ()=>{
+            const pid = item.dataset.postId;
+            if(pid) location.href = `party.html?pid=${pid}`;
+          });
+        });
+      }catch(e){
+        $('#notifyContent').innerHTML = '<div class="error">Failed to load notifications</div>';
+      }
+    }
+  };
+
+  close.onclick = () => panel.classList.remove('open');
+}
+
+window.addEventListener('load', ()=>{
+  loadMe();
+  loadNotifs();
+  setupBell();
+});
+
 
 function setupBell(){
   const bell = $('#bell');
