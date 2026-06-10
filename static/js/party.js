@@ -1,14 +1,22 @@
-const urlParams = new URLSearchParams(window.location.search);
-const POST_ID = urlParams.get('pid') || urlParams.get('id');
+let POST_ID = null;
 
-if(!POST_ID){
-  uiAlert('Missing party ID in URL','Error','⚠️').then(()=>location.href='find-players.html');
-  throw new Error('Missing POST_ID');
+function initParty() {
+  const urlParams = new URLSearchParams(window.location.search);
+  POST_ID = urlParams.get('pid') || urlParams.get('id');
+
+  if(!POST_ID){
+    uiAlert('Missing party ID in URL','Error','⚠️').then(()=>location.href='find-players.html');
+    return;
+  }
+
+  loadParty();
 }
 
 let last = 0;
 
 async function loadParty(){
+  if(!POST_ID) return;
+
   try{
     const d = await api('/api/party/'+POST_ID);
     const p = d.post;
@@ -63,6 +71,7 @@ async function loadParty(){
 }
 
 $('#joinBtn').onclick = async ()=>{
+  if(!POST_ID) return;
   try{
     await api('/api/party/'+POST_ID+'/join',{method:'POST'});
     loadParty();
@@ -72,6 +81,7 @@ $('#joinBtn').onclick = async ()=>{
 };
 
 $('#leaveBtn').onclick = async ()=>{
+  if(!POST_ID) return;
   if(await uiConfirm('Leave party?')){
     try{
       await api('/api/party/'+POST_ID+'/leave',{method:'POST'});
@@ -83,6 +93,7 @@ $('#leaveBtn').onclick = async ()=>{
 };
 
 $('#send').onclick = async ()=>{
+  if(!POST_ID) return;
   const body = $('#msg').value.trim();
   if(!body) return;
   try{
@@ -98,6 +109,7 @@ $('#send').onclick = async ()=>{
 };
 
 async function kick(id){
+  if(!POST_ID) return;
   if(await uiConfirm('Kick this user?')){
     try{
       await api('/api/party/'+POST_ID+'/kick',{
@@ -112,6 +124,7 @@ async function kick(id){
 }
 
 async function closeParty(){
+  if(!POST_ID) return;
   if(await uiConfirm('Close party?','Close','🔒')){
     try{
       const r = await api('/api/party/'+POST_ID+'/close',{method:'POST'});
@@ -122,5 +135,5 @@ async function closeParty(){
   }
 }
 
-setInterval(loadParty, 2500);
-loadParty();
+window.addEventListener('load', initParty);
+setInterval(()=>{ if(POST_ID) loadParty(); }, 2500);
