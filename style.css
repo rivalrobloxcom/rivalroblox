@@ -320,3 +320,109 @@ right:8px;
 }
 }
 
+@media (max-width: 768px){
+
+  body{
+    overflow-x:hidden;
+  }
+
+  .site{
+    width:100%;
+    max-width:100%;
+  }
+
+  .hero{
+    display:flex !important;
+    flex-direction:column !important;
+    padding:24px 16px !important;
+  }
+
+  .home-side{
+    width:100%;
+  }
+
+  .hero-actions{
+    width:100%;
+  }
+
+  .hero-actions a{
+    width:100% !important;
+    min-width:0;
+  }
+
+  .nav{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .navlinks{
+    display:grid !important;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    width:100%;
+    overflow:visible;
+  }
+
+  .navitem{
+    min-width:0 !important;
+    width:100%;
+  }
+
+  .stats-grid{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+  }
+
+  .post-card{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:flex-start !important;
+  }
+
+  .hostchip{
+    width:100%;
+  }
+
+  .joinstate{
+    width:100%;
+    justify-self:stretch;
+  }
+
+  .joinstate button,
+  .joinstate a{
+    width:100%;
+  }
+
+  .notify-panel{
+    left:10px !important;
+    right:10px !important;
+    width:auto !important;
+  }
+
+  .party-grid{
+    display:flex !important;
+    flex-direction:column !important;
+  }
+
+  .members-card{
+    width:100%;
+  }
+
+  .chat-card{
+    width:100%;
+  }
+
+  .create-layout{
+    display:flex !important;
+    flex-direction:column !important;
+  }
+
+  .preview-wrap{
+    order:-1;
+  }
+
+  .preview-card{
+    width:100%;
+  }
+
+}
